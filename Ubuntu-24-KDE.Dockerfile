@@ -348,14 +348,10 @@ RUN if [ "$ENABLE_binfmt_ARG" = "true" ]; then \
         apt-get install -y qemu-user-static && \
         apt-get install -y binfmt-support && \
         dpkg --add-architecture amd64 && \
-        sed -i '/^Types: deb$/a Architectures: arm64 armhf' /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Types: deb" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "URIs: http://archive.ubuntu.com/ubuntu/" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Suites: noble noble-updates noble-security" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Components: main universe restricted multiverse" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Architectures: amd64" >> /etc/apt/sources.list.d/ubuntu.sources && \
-        echo "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" >> /etc/apt/sources.list.d/ubuntu.sources && \
+        UBUNTU_CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")" && \
+        NATIVE_ARCH="$(dpkg --print-architecture)" && \
+        sed -i "/^Types: deb$/a Architectures: ${NATIVE_ARCH} armhf" /etc/apt/sources.list.d/ubuntu.sources && \
+        printf "Types: deb\nURIs: http://archive.ubuntu.com/ubuntu/\nSuites: %s %s-updates %s-security\nComponents: main universe restricted multiverse\nArchitectures: amd64\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n" "$UBUNTU_CODENAME" "$UBUNTU_CODENAME" "$UBUNTU_CODENAME" > /etc/apt/sources.list.d/ubuntu-amd64.sources && \
         apt-get update && \
         apt-get install -y libc6:amd64; \
     else \
