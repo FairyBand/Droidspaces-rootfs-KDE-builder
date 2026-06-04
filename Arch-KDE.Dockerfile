@@ -323,14 +323,19 @@ RUN if [ "$ENABLE_binfmt_ARG" = "false" ]; then \
     fi
 
 RUN if [ "$ENABLE_binfmt_ARG" = "true" ]; then \
-        chmod +x /usr/local/bin/qemu-binfmt-register.sh && \
-        chmod 644 /etc/systemd/system/qemu-binfmt-register.service && \
-        mkdir -p /etc/systemd/system/multi-user.target.wants && \
-        ln -sf /etc/systemd/system/qemu-binfmt-register.service /etc/systemd/system/multi-user.target.wants/qemu-binfmt-register.service && \
-        pacman -S --noconfirm --needed qemu-user-static && \
-        rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/* ; \
+        if pacman -Si qemu-user-static >/dev/null 2>&1; then \
+            chmod +x /usr/local/bin/qemu-binfmt-register.sh && \
+            chmod 644 /etc/systemd/system/qemu-binfmt-register.service && \
+            mkdir -p /etc/systemd/system/multi-user.target.wants && \
+            ln -sf /etc/systemd/system/qemu-binfmt-register.service /etc/systemd/system/multi-user.target.wants/qemu-binfmt-register.service && \
+            pacman -S --noconfirm --needed qemu-user-static && \
+            rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/* ; \
+        else \
+            echo "--> [skip] qemu-user-static is not available in the current Arch Linux ARM repository; binfmt support will be disabled." && \
+            rm -f /usr/local/bin/qemu-binfmt-register.sh /etc/systemd/system/qemu-binfmt-register.service /etc/systemd/system/multi-user.target.wants/qemu-binfmt-register.service; \
+        fi; \
     else \
-        rm -f /usr/local/bin/qemu-binfmt-register.sh /etc/systemd/system/qemu-binfmt-register.service; \
+        rm -f /usr/local/bin/qemu-binfmt-register.sh /etc/systemd/system/qemu-binfmt-register.service /etc/systemd/system/multi-user.target.wants/qemu-binfmt-register.service; \
     fi
 
 # 彻底清理 pacman 缓存
