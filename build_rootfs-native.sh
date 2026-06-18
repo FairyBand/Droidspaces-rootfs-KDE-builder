@@ -3,25 +3,30 @@
 DATE=$(date +%Y%m%d)      # 获取当前日期
 ARCH=$(uname -m)          # 获取当前系统架构
 ENABLE_binfmt="false"
+BUILD_KDE_plus="false"
 # 解析输入参数 (-i 指定 Dockerfile，-v 指定版本号)
-while getopts "i:v:K:P:a:b:c:d:e:f:g:h:j:" opt; do
+while getopts "i:v:K:L:P:a:b:c:d:e:f:g:h:j:u:" opt; do
   case $opt in
     i) DOCKERFILE="$OPTARG" ;; # -i 参数赋值给 DOCKERFILE 变量
     v) VERSION="$OPTARG" ;;    # -v 参数赋值给 VERSION 变量
     K) BUILD_KDE="$OPTARG"  ;;
+    L) BUILD_KDE_plus="$OPTARG"  ;;
     P) PulseAudio="$OPTARG"  ;;
-    g) ENABLE_zh_tz="$OPTARG"  ;;# 中文支持
+    g) ENABLE_zh_tz="$OPTARG"  ;; # 中文支持
     a) ENABLE_binfmt="$OPTARG" ;; # -a 跨架构支持
-    b) ENABLE_yj="$OPTARG" ;; 
+    b) ENABLE_yj="$OPTARG" ;;
     c) ENABLE_mesa="$OPTARG" ;;
-    d) ENABLE_kfgj="$OPTARG" ;; 
-    e) ENABLE_zip="$OPTARG" ;; 
-    f) ENABLE_docker="$OPTARG" ;; 
+    d) ENABLE_kfgj="$OPTARG" ;;
+    e) ENABLE_zip="$OPTARG" ;;
+    f) ENABLE_docker="$OPTARG" ;;
     h) ENABLE_srf="$OPTARG" ;; # 输入法 fcitx5
     j) ENABLE_tmoe="$OPTARG" ;; # tmoe
+    u) USERNAME="$OPTARG" ;; # 自定义用户名
     *) echo "用法: $0 -i <template.Dockerfile> [-v <version>]" ; exit 1 ;;
   esac
 done
+
+: "${USERNAME:=Gold}"
 
 # 校验：检查是否传递了 Dockerfile 模板文件
 if [ -z "$DOCKERFILE" ]; then
@@ -79,6 +84,7 @@ docker buildx build \
   --target export \
   --output type=tar,dest="$TEMP_TAR" \
   --build-arg BUILD_KDE="$BUILD_KDE" \
+  --build-arg BUILD_KDE_plus="$BUILD_KDE_plus" \
   --build-arg PulseAudio="$PulseAudio" \
   --build-arg ENABLE_zh_tz_ARG="$ENABLE_zh_tz" \
   --build-arg ENABLE_binfmt_ARG="$ENABLE_binfmt" \
@@ -89,6 +95,7 @@ docker buildx build \
   --build-arg ENABLE_docker_ARG="$ENABLE_docker" \
   --build-arg ENABLE_srf_ARG="$ENABLE_srf" \
   --build-arg ENABLE_tmoe_ARG="$ENABLE_tmoe" \
+  --build-arg USERNAME="$USERNAME" \
   -f "$DOCKERFILE" \
   .
 
