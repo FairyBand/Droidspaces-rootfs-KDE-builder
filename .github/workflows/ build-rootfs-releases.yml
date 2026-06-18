@@ -1,5 +1,9 @@
 name: 编译并发布 Droidspaces RootFS
 
+env:
+  ANLAND_REPO: https://github.com/superturtlee/anland.git
+  ANLAND_COMMIT: aa1d34727695ee8a75a9b6fb0722753854b80449
+
 on:
   workflow_dispatch: 
     inputs:
@@ -13,6 +17,7 @@ on:
           - 'Ubuntu-24-KDE'
           - 'Ubuntu-25-KDE'
           - 'Ubuntu-26-KDE'
+          - 'Ubuntu-26-GNOME-Wayland'
           - 'Fedora-43-KDE'
           - 'Arch-KDE'
           - 'all'
@@ -169,6 +174,9 @@ jobs:
             -h "${{ inputs.enable_srf }}" \
             -j "${{ inputs.enable_tmoe }}" \
             -u "${{ inputs.custom_username }}"
+        env:
+          ANLAND_REPO: ${{ env.ANLAND_REPO }}
+          ANLAND_COMMIT: ${{ env.ANLAND_COMMIT }}
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
@@ -178,10 +186,52 @@ jobs:
           retention-days: 1
 
   # --------------------------------------------------------
-  # 阶段 3: release (汇总发布)
+  # 阶段 3: anland 配套产物 (APK 与 Magisk/KernelSU 模块)
+  # --------------------------------------------------------
+  anland-artifacts:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出 anland
+        run: |
+          git clone "${ANLAND_REPO}" anland
+          cd anland
+          git checkout "${ANLAND_COMMIT}"
+
+      - name: 设置 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 Android NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake zip
+          sdkmanager "ndk;29.0.13113456" "cmake;3.22.1"
+
+      - name: 构建 anland APK 与模块
+        run: |
+          cd anland
+          mkdir -p build_tools
+          ln -s "$ANDROID_HOME" build_tools/android-sdk
+          rm -f android_consumer/local.properties
+          (cd android_consumer && ./gradlew assembleRelease)
+          bash build_magisk_module.sh
+          mkdir -p ../anland_assets
+          cp android_consumer/app/build/outputs/apk/release/app-release.apk ../anland_assets/anland-consumer-${ANLAND_COMMIT}.apk
+          cp anland-daemon.zip ../anland_assets/anland-magisk-kernelsu-${ANLAND_COMMIT}.zip
+          printf '%s\n' "${ANLAND_COMMIT}" > ../anland_assets/ANLAND_COMMIT.txt
+
+      - name: 上传 anland 配套产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: anland-${{ env.ANLAND_COMMIT }}
+          path: anland_assets/*
+          retention-days: 1
+
+  # --------------------------------------------------------
+  # 阶段 4: release (汇总发布)
   # --------------------------------------------------------
   release:
-    needs: [setup, build]
+    needs: [setup, build, anland-artifacts]
     if: ${{ !cancelled() && needs.setup.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
@@ -193,13 +243,16 @@ jobs:
       - name: 下载所有产物
         uses: actions/download-artifact@v4
         with:
-          pattern: "*-rootfs"
+          pattern: "*"
           merge-multiple: true
           
       - name: 整理资源
         run: |
           mkdir -p release_assets
           mv *.tar.xz release_assets/
+          mv anland-consumer-*.apk release_assets/
+          mv anland-magisk-kernelsu-*.zip release_assets/
+          mv ANLAND_COMMIT.txt release_assets/
           PA_CHOICE="${{ github.event.inputs.PulseAudio }}"
           CUSTOM_USERNAME="${{ github.event.inputs.custom_username }}"
           build_KDE_plus="${{ github.event.inputs.build_KDE_plus }}"
@@ -234,6 +287,8 @@ jobs:
             - 开发工具集成: ${{ github.event.inputs.enable_kfgj }}
             - 压缩工具集成: ${{ github.event.inputs.enable_zip }}
             - Docker 集成: ${{ github.event.inputs.enable_docker }}
+            - anland 仓库: ${{ env.ANLAND_REPO }}
+            - anland Commit: ${{ env.ANLAND_COMMIT }}
             
           draft: false
           prerelease: false

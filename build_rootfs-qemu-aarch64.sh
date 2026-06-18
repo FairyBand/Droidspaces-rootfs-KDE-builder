@@ -1,5 +1,7 @@
 #!/bin/bash
 : "${VERSION:=dev}"
+: "${ANLAND_REPO:=https://github.com/superturtlee/anland.git}"
+: "${ANLAND_COMMIT:=aa1d34727695ee8a75a9b6fb0722753854b80449}"
 DATE=$(date +%Y%m%d)      # 获取当前日期
 TARGET_ARCH="arm64"       # 目标编译架构固定为 arm64
 PLATFORM="linux/arm64"    # Docker buildx 的平台参数
@@ -96,6 +98,8 @@ docker buildx build \
   --build-arg ENABLE_srf_ARG="$ENABLE_srf" \
   --build-arg ENABLE_tmoe_ARG="$ENABLE_tmoe" \
   --build-arg USERNAME="$USERNAME" \
+  --build-arg ANLAND_REPO="$ANLAND_REPO" \
+  --build-arg ANLAND_COMMIT="$ANLAND_COMMIT" \
   -f "$DOCKERFILE" \
   .
 
