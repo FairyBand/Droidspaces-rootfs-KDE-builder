@@ -47,16 +47,25 @@ RUN apt-get update && \
     procps \
     # 核心内核模块支持
     kmod tzdata && \
-    ############################################## GNOME Wayland支持 ################################################
+    ############################################## KDE Wayland支持 ################################################
     # 解除底层系统对中文等翻译文件(.mo)的剔除规则，防止安装桌面时丢包
     sed -i 's|^path-exclude=/usr/share/locale/\*/LC_MESSAGES/\*.mo|#&|' /etc/dpkg/dpkg.cfg.d/excludes || true && \
-    apt-get install -y --no-install-recommends \
-        dbus-x11 fonts-noto-cjk fonts-noto-color-emoji \
-        gnome-shell gnome-session gnome-settings-daemon gnome-control-center gnome-terminal nautilus mutter xwayland \
-        pipewire pipewire-pulse wireplumber mesa-utils pulseaudio-utils vulkan-tools wayland-utils dbus-user-session \
-        dconf-cli gsettings-desktop-schemas adwaita-icon-theme gnome-themes-extra gnome-keyring \
-        xdg-user-dirs libcanberra-pulse gstreamer1.0-plugins-base gstreamer1.0-plugins-good sound-theme-freedesktop \
-        libpam-systemd libpam-modules aha clinfo dmidecode libdisplay-info-bin pciutils; \
+    if [ "$BUILD_KDE" = "min" ]; then \
+        apt-get install -y --no-install-recommends \
+        dbus-x11 fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop kubuntu-settings-desktop kubuntu-wallpapers \
+        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-wayland plasma-workspace-wayland xwayland upower konsole \
+        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools wayland-utils dbus-user-session \
+        polkit-kde-agent-1 libpam-systemd libpam-modules; \
+    fi && \
+    if [ "$BUILD_KDE" = "conc" ]; then \
+        apt-get install -y --no-install-recommends \
+        dbus-x11 fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop kubuntu-settings-desktop kubuntu-wallpapers \
+        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-wayland plasma-workspace-wayland xwayland upower konsole \
+        dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools wayland-utils dbus-user-session aha clinfo dmidecode libdisplay-info-bin pciutils \
+        kfind plasma-systemmonitor filelight glmark2 vkmark systemsettings kde-config-screenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
+        kimageformat6-plugins plasma-browser-integration libcanberra-pulse gstreamer1.0-plugins-base gstreamer1.0-plugins-good sound-theme-freedesktop \
+        polkit-kde-agent-1 libpam-systemd libpam-modules libpam-kwallet5 language-pack-kde-zh-hans language-pack-zh-hans qt6-translations-l10n; \
+    fi && \
     ######################################################################################################
     #输入法 fcitx5 (可选)
     if [ "$ENABLE_srf_ARG" = "true" ]; then \
@@ -121,9 +130,7 @@ RUN sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen && \
 RUN cat <<'EOF' > /etc/environment
 XCURSOR_SIZE=48
 XDG_SESSION_TYPE=wayland
-GDK_BACKEND=wayland,x11
 QT_QPA_PLATFORM=wayland
-MOZ_ENABLE_WAYLAND=1
 ANLAND_SOCKET=/run/display.sock
 EOF
 # 音频选择
@@ -133,7 +140,7 @@ RUN if [ "$PulseAudio" = "socket" ]; then \
         echo "PULSE_SERVER=tcp:127.0.0.1:4713" >> /etc/environment; \
     fi
 
-# 输入法开机自启动及 GNOME Wayland 配置
+# 输入法开机自启动及 KDE Wayland 配置
 RUN <<'EOF_RUN'
     if [ "$ENABLE_srf_ARG" = "true" ]; then
     mkdir -p /home/${USERNAME}/.config/autostart
@@ -174,23 +181,23 @@ EOF
     mkdir -p /home/${USERNAME}/.config
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
     if [ "$BUILD_KDE_plus" = "true" ] ; then
-    cat <<EOF > /etc/systemd/system/gnome-anland.service
+    cat <<EOF > /etc/systemd/system/kde-anland.service
 [Unit]
-Description=Start GNOME Wayland through anland
+Description=Start KDE Wayland through anland
 After=network.target display-manager.service
 
 [Service]
 Type=simple
 User=${USERNAME}
 EnvironmentFile=-/etc/environment
-ExecStart=/usr/local/bin/start-gnome-anland
+ExecStart=/usr/local/bin/start-kde-anland
 Restart=no
 
 [Install]
 WantedBy=multi-user.target
 EOF
     mkdir -p /etc/systemd/system/multi-user.target.wants
-    ln -sf /etc/systemd/system/gnome-anland.service /etc/systemd/system/multi-user.target.wants/gnome-anland.service
+    ln -sf /etc/systemd/system/kde-anland.service /etc/systemd/system/multi-user.target.wants/kde-anland.service
     fi
 EOF_RUN
 
@@ -208,7 +215,7 @@ RUN if [ "$ENABLE_mesa_ARG" = "true" ]; then \
         echo "--> [跳过] 未开启 Mesa 驱动安装"; \
     fi
 
-# anland Weston 后端与 GNOME Wayland 启动脚本
+# anland Weston 后端与 KDE Wayland 启动脚本
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential meson ninja-build pkg-config cmake \
@@ -232,7 +239,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN cat <<'EOF' > /usr/local/bin/start-gnome-anland
+RUN cat <<'EOF' > /usr/local/bin/start-kde-anland
 #!/bin/bash
 set -euo pipefail
 
@@ -241,77 +248,26 @@ if [ ! -S "$SOCK" ] && [ -S /data/local/tmp/display_daemon.sock ]; then
     SOCK=/data/local/tmp/display_daemon.sock
 fi
 
-PREFIX=/opt/weston-anland
-LIBDIR="$PREFIX/lib/aarch64-linux-gnu"
-
-export LD_LIBRARY_PATH="$LIBDIR:$LIBDIR/libweston-16:$LIBDIR/weston:${LD_LIBRARY_PATH:-}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 0700 "$XDG_RUNTIME_DIR"
-export WESTON_MODULE_MAP="anland-backend.so=$LIBDIR/libweston-16/anland-backend.so;gl-renderer.so=$LIBDIR/libweston-16/gl-renderer.so;vulkan-renderer.so=$LIBDIR/libweston-16/vulkan-renderer.so;xwayland.so=$LIBDIR/libweston-16/xwayland.so;kiosk-shell.so=$LIBDIR/weston/kiosk-shell.so"
 
 unset DISPLAY
 export XDG_SESSION_TYPE=wayland
-export GDK_BACKEND=wayland,x11
 export QT_QPA_PLATFORM=wayland
-export MOZ_ENABLE_WAYLAND=1
 export MESA_LOADER_DRIVER_OVERRIDE="${MESA_LOADER_DRIVER_OVERRIDE:-kgsl}"
 export GALLIUM_DRIVER="${GALLIUM_DRIVER:-kgsl}"
 export FD_FORCE_KGSL="${FD_FORCE_KGSL:-1}"
 export MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE="${MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE:-1}"
 export MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE_DRI3="${MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE_DRI3:-1}"
+export FD_MESA_DEBUG="${FD_MESA_DEBUG:-notile}"
+export XWAYLAND_NO_DRI3_MODIFIERS="${XWAYLAND_NO_DRI3_MODIFIERS:-1}"
 
-WESTON_PID=
-GNOME_PID=
-
-cleanup() {
-    [ -n "${GNOME_PID:-}" ] && kill "$GNOME_PID" 2>/dev/null || true
-    [ -n "${WESTON_PID:-}" ] && kill "$WESTON_PID" 2>/dev/null || true
-    sleep 0.3
-    [ -n "${GNOME_PID:-}" ] && kill -9 "$GNOME_PID" 2>/dev/null || true
-    [ -n "${WESTON_PID:-}" ] && kill -9 "$WESTON_PID" 2>/dev/null || true
-    wait 2>/dev/null || true
-}
-trap cleanup EXIT
-
-rm -f "$XDG_RUNTIME_DIR"/wayland-* 2>/dev/null || true
-"$PREFIX/bin/weston" -Banland-backend.so --disp-sock="$SOCK" --shell=kiosk-shell.so --no-config &
-WESTON_PID=$!
-
-WAYLAND_SOCKET=""
-for _ in $(seq 1 300); do
-    sleep 1
-    for wl in "$XDG_RUNTIME_DIR"/wayland-*; do
-        [ -S "$wl" ] || continue
-        WAYLAND_SOCKET="$(basename "$wl")"
-        break 2
-    done
-done
-
-if [ -z "$WAYLAND_SOCKET" ]; then
-    echo "ERROR: weston wayland socket not found"
-    wait "$WESTON_PID"
-    exit 1
-fi
-
-export WAYLAND_DISPLAY="$WAYLAND_SOCKET"
 echo "anland socket: $SOCK"
-echo "wayland socket: $WAYLAND_DISPLAY"
-
-if command -v gnome-shell >/dev/null 2>&1; then
-    dbus-run-session -- gnome-shell --nested --wayland &
-elif command -v gnome-session >/dev/null 2>&1; then
-    dbus-run-session -- gnome-session --session=gnome &
-else
-    echo "ERROR: neither gnome-shell nor gnome-session was found"
-    exit 1
-fi
-GNOME_PID=$!
-
-wait "$WESTON_PID"
+exec /opt/weston-anland/start_kde.sh "$SOCK"
 EOF
-RUN chmod +x /usr/local/bin/start-gnome-anland && \
-    ln -sf /usr/local/bin/start-gnome-anland /opt/weston-anland/start_gnome.sh
+RUN chmod +x /usr/local/bin/start-kde-anland && \
+    ln -sf /usr/local/bin/start-kde-anland /opt/weston-anland/start_kde_anland.sh
 
 # 修复容器内的 DHCP 网络服务配置
 RUN mkdir -p /etc/systemd/network && \
