@@ -310,7 +310,8 @@ GNOME_PID=$!
 
 wait "$WESTON_PID"
 EOF
-RUN chmod +x /usr/local/bin/start-gnome-anland
+RUN chmod +x /usr/local/bin/start-gnome-anland && \
+    ln -sf /usr/local/bin/start-gnome-anland /opt/weston-anland/start_gnome.sh
 
 # 修复容器内的 DHCP 网络服务配置
 RUN mkdir -p /etc/systemd/network && \
