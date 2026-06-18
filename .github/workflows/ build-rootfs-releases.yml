@@ -18,6 +18,7 @@ on:
           - 'Ubuntu-25-KDE'
           - 'Ubuntu-26-KDE'
           - 'Ubuntu-26-KDE-Wayland'
+          - 'Ubuntu-26-KDE-Anland'
           - 'Fedora-43-KDE'
           - 'Arch-KDE'
           - 'all'
