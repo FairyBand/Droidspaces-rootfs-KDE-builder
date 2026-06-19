@@ -53,14 +53,14 @@ RUN apt-get update && \
     if [ "$BUILD_KDE" = "min" ]; then \
         apt-get install -y --no-install-recommends \
         dbus-x11 fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop kubuntu-settings-desktop kubuntu-wallpapers \
-        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-wayland plasma-workspace-wayland xwayland upower konsole \
+        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-wayland plasma-session-wayland xwayland upower konsole \
         dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools wayland-utils dbus-user-session \
         polkit-kde-agent-1 libpam-systemd libpam-modules; \
     fi && \
     if [ "$BUILD_KDE" = "conc" ]; then \
         apt-get install -y --no-install-recommends \
         dbus-x11 fonts-noto-cjk fonts-noto-color-emoji kde-plasma-desktop kubuntu-settings-desktop kubuntu-wallpapers \
-        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-wayland plasma-workspace-wayland xwayland upower konsole \
+        pipewire pipewire-pulse wireplumber powerdevil kscreen plasma-pa ark kwin-wayland plasma-session-wayland xwayland upower konsole \
         dolphin kate kinfocenter mesa-utils pulseaudio-utils vulkan-tools wayland-utils dbus-user-session aha clinfo dmidecode libdisplay-info-bin pciutils \
         kfind plasma-systemmonitor filelight glmark2 vkmark systemsettings kde-config-screenlocker kio-extras xdg-user-dirs dolphin-plugins ffmpegthumbs kdegraphics-thumbnailers \
         kimageformat6-plugins plasma-browser-integration libcanberra-pulse gstreamer1.0-plugins-base gstreamer1.0-plugins-good sound-theme-freedesktop \
